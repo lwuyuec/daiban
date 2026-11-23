@@ -10,13 +10,26 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return fmtISO(d); };
 
+  function formatCreated(ts) {
+    const d = new Date(Number(ts) || Date.now());
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = n => String(n).padStart(2, '0');
+    const time = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    const year = d.getFullYear();
+    const date = year === new Date().getFullYear()
+      ? (d.getMonth() + 1) + '月' + d.getDate() + '日'
+      : year + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    return '创建于 ' + date + ' ' + time;
+  }
+
   const ICON = {
     inbox: '<path d="M4 13.5V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7"/><path d="M4 13.5h4l1.4 2.4h5.2L16 13.5h4v4A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5z"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/>',
     circle: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/>',
     check: '<circle cx="12" cy="12" r="8.5"/><path d="M8.3 12.3l2.5 2.5 4.9-5.2"/>',
     flag: '<path d="M6 20V5"/><path d="M6 5.5h10.5l-2 4 2 4H6"/>',
-    cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3.5v3M16 3.5v3M3.5 10h17"/>'
+    cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3.5v3M16 3.5v3M3.5 10h17"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
   };
 
   /* ---------------- 数据层：IndexedDB，localStorage 兜底 ---------------- */
@@ -513,6 +526,7 @@
         (t.note ? '<p class="c-note">' + esc(t.note) + '</p>' : '') +
         (imgs ? '<div class="c-imgs">' + imgs + more + '</div>' : '') +
         '<div class="c-meta">' +
+        '<span class="mchip created" title="创建时间"><svg viewBox="0 0 24 24" aria-hidden="true">' + ICON.clock + '</svg>' + esc(formatCreated(t.createdAt)) + '</span>' +
         (d ? '<span class="mchip ' + d.cls + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + ICON.cal + '</svg>' + d.text + '</span>' : '') +
         tags +
         '</div>' +

@@ -290,6 +290,8 @@ main{flex:1;min-width:0;width:100%;max-width:1680px;margin-inline:auto;padding:3
 .mchip.over{color:var(--danger);background:var(--danger-soft);padding:2px 7px;border-radius:6px;font-weight:600}
 .mchip.today{color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:6px;font-weight:600}
 .mchip.tag{background:#F5F3F0;padding:2.5px 8px;border-radius:6px;color:#6E6A76}
+.mchip.created{background:var(--accent-soft);color:var(--accent);font-weight:600;padding:3px 8px;letter-spacing:.1px}
+.mchip.created svg{opacity:1;stroke-width:2}
 .mchip.dot-gap::before{content:"";width:3px;height:3px;border-radius:50%;background:#CFCBD8;display:block;margin-right:2px}
 
 .c-actions{display:flex;align-items:flex-start;gap:2px;opacity:0;transition:.18s}
