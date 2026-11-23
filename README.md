@@ -43,6 +43,36 @@ daiban/
 
 > Vercel Blob 在所有套餐可用。Hobby 套餐有免费额度，适合个人/小团队待办看板。
 
+## 改代码后自动更新线上
+
+Vercel 通过 Git 集成自动部署：**只要把提交推送到 GitHub 的 `main` 分支，Vercel 就会自动构建并发布新版本**，无需手动操作控制台。
+
+### 一次性确认（只需做一次）
+
+1. Vercel 项目 → **Settings → Git**，确认 Connected Repository 是 `lwuyuec/daiban`。
+2. 同页确认 **Production Branch** 为 `main`，且 **Auto-Deployments** 没有被关闭。
+3. 如果导入 Vercel 时没有连接 Git，先到 **Settings → Git → Connect Git Repository** 连上同名仓库。
+
+### 日常改代码流程
+
+在 `D:\Projects\待办事项`（或任意 clone 了本仓库的目录）里改完代码后执行：
+
+```bash
+git add -A
+git commit -m "说明这次改了什么"
+git push origin main
+```
+
+推送成功后到 Vercel 项目首页的 **Deployments**，会看到一条新的 `Production` 部署记录（通常 1 分钟左右完成）。完成后浏览器强制刷新（`Ctrl + F5`）即可看到新版本。
+
+### 注意事项
+
+- 本地 `npm run dev` 只是本机预览，**不会**更新线上；必须 `git push origin main`。
+- 推送到其它分支只会生成 Preview 预览部署，不会更新正式地址。
+- 如果换设备改代码，先 `git pull origin main` 拉取最新提交再改，避免冲突。
+- 待办数据存在 Vercel Blob 中，重新部署**不会**丢失数据。
+- 如果 push 后 Vercel 没有反应：检查 Git 连接和分支名是否为 `main`，或在 Deployments 页面手动点 **Deploy** 排查。
+
 ## 本地运行
 
 ```bash
