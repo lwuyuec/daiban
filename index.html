@@ -65,6 +65,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>
         清除已完成
       </button>
+      <button class="ghost-btn" id="changePwdBtn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+        修改访问密码
+      </button>
       <div class="storage-note">数据保存在 Vercel Blob，多设备共享。</div>
     </div>
   </aside>
@@ -189,6 +193,37 @@
       <span class="hint">Ctrl / ⌘ + Enter 保存</span>
       <button class="btn ghost" id="cancelBtn" type="button">取消</button>
       <button class="btn primary" id="saveBtn" type="button">保存待办</button>
+    </div>
+  </div>
+</div>
+
+<!-- 修改访问密码 -->
+<div class="modal" id="pwdModal" aria-hidden="true">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pwdModalTitle">
+    <div class="sheet-head">
+      <h3 id="pwdModalTitle">修改访问密码</h3>
+      <span class="esc">ESC 取消</span>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <label for="pwdOld">当前密码</label>
+        <input class="inp" type="password" id="pwdOld" autocomplete="current-password" placeholder="输入当前访问密码">
+      </div>
+      <div class="field">
+        <label for="pwdNew">新密码</label>
+        <input class="inp" type="password" id="pwdNew" autocomplete="new-password" placeholder="至少 4 位">
+      </div>
+      <div class="field">
+        <label for="pwdConfirm">确认新密码</label>
+        <input class="inp" type="password" id="pwdConfirm" autocomplete="new-password" placeholder="再输入一次新密码">
+      </div>
+      <p class="pwd-tip">修改成功后，之前复制的协作链接将失效，需要重新复制分享。</p>
+      <p class="pwd-error" id="pwdError" role="alert"></p>
+    </div>
+    <div class="sheet-foot">
+      <span class="hint">密码以加盐哈希保存在服务端</span>
+      <button class="btn ghost" id="pwdCancel" type="button">取消</button>
+      <button class="btn primary" id="pwdSave" type="button">确认修改</button>
     </div>
   </div>
 </div>

@@ -23,6 +23,18 @@ export default async function handler(req, res) {
       const record = await readJson(PASSWORD_PATH);
       const password = String(body.password || '');
 
+      if (body.action === 'change') {
+        if (!record) throw new HttpError(400, '尚未设置访问密码');
+        if (!verifyPassword(password, record.data)) throw new HttpError(401, '当前密码不正确');
+        const next = String(body.newPassword || '');
+        if (next.length < 4) throw new HttpError(400, '新密码至少需要 4 位');
+        if (next !== String(body.confirm || '')) throw new HttpError(400, '两次输入的新密码不一致');
+        if (next === password) throw new HttpError(400, '新密码不能与当前密码相同');
+        await writeJson(PASSWORD_PATH, hashPassword(next), record.etag);
+        sendJson(res, 200, { ok: true, changed: true });
+        return;
+      }
+
       if (!record) {
         if (password.length < 4) throw new HttpError(400, '访问密码至少需要 4 位');
         if (password !== String(body.confirm || '')) throw new HttpError(400, '两次输入的密码不一致');

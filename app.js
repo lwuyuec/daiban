@@ -958,6 +958,7 @@
     const meta = e.metaKey || e.ctrlKey;
     if (e.key === 'Escape') {
       if (lightbox.classList.contains('open')) { closeLightbox(); return; }
+      if ($('#pwdModal').classList.contains('open')) { closePwdModal(); return; }
       if (modal.classList.contains('open')) { closeModal(); return; }
     }
     if (meta && e.key === 'Enter' && modal.classList.contains('open')) { e.preventDefault(); saveTodo(); }
@@ -1042,6 +1043,47 @@
       toast('协作链接已复制（含访问密码，请仅发给可信成员）');
     } catch (e) {
       toast('复制失败，请手动复制地址栏链接');
+    }
+  };
+
+  function openPwdModal() {
+    $('#pwdOld').value = '';
+    $('#pwdNew').value = '';
+    $('#pwdConfirm').value = '';
+    $('#pwdError').textContent = '';
+    $('#pwdModal').classList.add('open');
+    $('#pwdModal').setAttribute('aria-hidden', 'false');
+    setTimeout(() => $('#pwdOld').focus(), 80);
+  }
+
+  function closePwdModal() {
+    $('#pwdModal').classList.remove('open');
+    $('#pwdModal').setAttribute('aria-hidden', 'true');
+  }
+
+  $('#changePwdBtn').onclick = openPwdModal;
+  $('#pwdCancel').onclick = closePwdModal;
+  $('#pwdModal').addEventListener('mousedown', e => { if (e.target === $('#pwdModal')) closePwdModal(); });
+
+  $('#pwdSave').onclick = async () => {
+    const current = $('#pwdOld').value;
+    const next = $('#pwdNew').value;
+    const confirm = $('#pwdConfirm').value;
+    $('#pwdError').textContent = '';
+    try {
+      await apiFetch(API_SESSION, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'change', password: current, newPassword: next, confirm })
+      });
+      accessPassword = next;
+      sessionStorage.setItem(PW_KEY, next);
+      const url = new URL(location.href);
+      if (url.searchParams.has('key')) url.searchParams.set('key', next);
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+      closePwdModal();
+      toast('访问密码已修改，请重新复制协作链接分享给成员');
+    } catch (error) {
+      $('#pwdError').textContent = error.message || '修改失败';
     }
   };
 
