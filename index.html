@@ -4,9 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="待办工作台：本地优先的待办清单，支持标签、优先级、截止日期与截图附件。">
-<meta name="theme-color" content="#F4F3EF">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235A57D6'/%3E%3Cpath d='M16 33l10 10 22-23' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <title>待办工作台</title>
+<script>
+  (() => {
+    let theme;
+    try { theme = localStorage.getItem('daiban-theme'); } catch (_) {}
+    document.documentElement.dataset.theme = theme === 'light' || theme === 'dark'
+      ? theme : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  })();
+</script>
 <link rel="stylesheet" href="./styles.css">
 <script src="./app.js" defer></script>
 </head>
@@ -85,17 +93,15 @@
           <input id="searchInput" type="search" placeholder="搜索待办、备注、标签" aria-label="搜索待办">
           <kbd>⌘K</kbd>
         </div>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换为暗色模式" title="切换为暗色模式">
+          <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 13a8.5 8.5 0 0 1-9.5-9.5A8.5 8.5 0 1 0 20.5 13Z"/></svg>
+          <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></svg>
+        </button>
         <button class="btn primary" id="newBtn" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
           新建待办
         </button>
       </div>
-    </div>
-
-    <div class="quick">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-      <input id="quickInput" placeholder="快速添加待办，按 Enter 创建；截图可直接 Ctrl+V 粘贴" aria-label="快速添加待办">
-      <button class="mini" id="quickBtn" type="button">添加</button>
     </div>
 
     <div class="sync-bar">
@@ -119,7 +125,7 @@
       </div>
     </div>
 
-    <section class="board">
+    <section class="board" aria-labelledby="listTitle">
       <div class="board-head">
         <h3 id="listTitle">全部待办</h3>
         <span class="sub" id="listCount"></span>
@@ -131,7 +137,13 @@
           </select>
         </div>
       </div>
-      <div class="list" id="list"></div>
+    <div class="quick">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      <input id="quickInput" placeholder="添加一件待办… 按 Enter 创建" aria-label="快速添加待办">
+      <button class="mini" id="quickBtn" type="button">添加</button>
+    </div>
+
+      <div class="list" id="list" aria-label="待办清单"></div>
       <div class="empty" id="empty">
         <div class="ico">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><path d="M8 9.5h8"/><path d="M8 13h5"/></svg>

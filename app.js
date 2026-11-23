@@ -1,6 +1,29 @@
 (function () {
   'use strict';
 
+  // Keep a manual preference across visits, otherwise follow the operating system.
+  const themeButton = document.getElementById('themeToggle');
+  const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+  let manualTheme = false;
+  try { manualTheme = ['light', 'dark'].includes(localStorage.getItem('daiban-theme')); } catch (_) {}
+  function updateTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    const label = theme === 'dark' ? '切换为亮色模式' : '切换为暗色模式';
+    themeButton.setAttribute('aria-label', label);
+    themeButton.title = label;
+    document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#171c1a' : '#ffffff';
+  }
+  updateTheme(document.documentElement.dataset.theme);
+  themeButton.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    manualTheme = true;
+    updateTheme(next);
+    try { localStorage.setItem('daiban-theme', next); } catch (_) {}
+  });
+  systemTheme.addEventListener('change', event => {
+    if (!manualTheme) updateTheme(event.matches ? 'dark' : 'light');
+  });
+
   /* ---------------- 基础工具 ---------------- */
   const $ = (s, el) => (el || document).querySelector(s);
   const pad = n => String(n).padStart(2, '0');
@@ -516,7 +539,7 @@
         ? '<button type="button" data-img="' + esc(t.id) + '" data-i="3"><img src="' + esc(t.images[3]) + '" alt=""><span class="more">+' + (t.images.length - 3) + '</span></button>'
         : '';
       const tags = (t.tags || []).map(tag => '<span class="mchip tag">#' + esc(tag) + '</span>').join('');
-      return '<article class="card' + (t.done ? ' done' : '') + '" data-id="' + esc(t.id) + '" style="animation-delay:' + Math.min(idx * 26, 180) + 'ms">' +
+      return '<article class="task-row' + (t.done ? ' done' : '') + '" data-id="' + esc(t.id) + '" style="animation-delay:' + Math.min(idx * 26, 180) + 'ms">' +
         '<button class="check" type="button" data-act="toggle" title="' + (t.done ? '标记为未完成' : '标记为完成') + '">' +
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5 10-10"/></svg></button>' +
         '<div class="c-main">' +
@@ -853,7 +876,7 @@
       return;
     }
 
-    const card = e.target.closest('.card');
+    const card = e.target.closest('.task-row');
     if (card) {
       const id = card.dataset.id;
       const act = e.target.closest('[data-act]');
