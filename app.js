@@ -111,12 +111,16 @@
   let draftImages = [];
   let saveTimer = null;
 
-  /* 共享看板状态 */
-  const API_BASE = '/api/board';
+  /* 访问密码与共享状态：密码由服务端校验，前端只在当前会话中保存 */
+  const API_SESSION = '/api/session';
+  const API_BOARD = '/api/board';
+  const PW_KEY = 'daiban-access-pw';
   const POLL_MS = 15000;
   let boardId = sanitizeBoard(new URLSearchParams(location.search).get('board'));
+  let accessPassword = '';
+  let lockMode = 'unlock';
   let cloudReady = false;
-  let localSha = null;
+  let localVersion = null;
   let pendingPush = false;
   let pushGeneration = 0;
   let pushTimer = null;
@@ -125,6 +129,20 @@
   function sanitizeBoard(raw) {
     return String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'default';
   }
+
+  function takePasswordFromUrl() {
+    const url = new URL(location.href);
+    const key = url.searchParams.get('key') || '';
+    if (key) {
+      url.searchParams.delete('key');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    }
+    return key;
+  }
+
+  const urlPassword = takePasswordFromUrl();
+  accessPassword = urlPassword || sessionStorage.getItem(PW_KEY) || '';
+  if (urlPassword) sessionStorage.setItem(PW_KEY, urlPassword);
 
   function storageKey() {
     return boardId === 'default' ? 'state' : 'state:' + boardId;
@@ -548,13 +566,10 @@
     schedulePush();
   }
 
-  async function apiRequest(method, body) {
-    const response = await fetch(API_BASE + '?board=' + encodeURIComponent(boardId), {
-      method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-      cache: 'no-store'
-    });
+  async function apiFetch(path, options) {
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+    if (accessPassword) headers['x-access-password'] = accessPassword;
+    const response = await fetch(path, { ...options, headers, cache: 'no-store' });
     let data = {};
     try { data = await response.json(); } catch (e) {}
     if (!response.ok) {
@@ -565,35 +580,118 @@
     return data;
   }
 
+  function showLock(mode) {
+    lockMode = mode;
+    const screen = $('#lockScreen');
+    screen.classList.add('open');
+    screen.setAttribute('aria-hidden', 'false');
+    $('#lockTitle').textContent = mode === 'setup' ? '设置访问密码' : '输入访问密码';
+    $('#lockDesc').textContent = mode === 'setup'
+      ? '首次使用请设置访问密码，之后打开页面都需要输入。'
+      : '请输入访问密码以查看和编辑待办。';
+    $('#lockBtn').textContent = mode === 'setup' ? '设置并进入' : '解锁';
+    $('#lockPwd2').hidden = mode !== 'setup';
+    $('#lockPwd').value = '';
+    $('#lockPwd2').value = '';
+    $('#lockError').textContent = '';
+    setTimeout(() => $('#lockPwd').focus(), 80);
+  }
+
+  function hideLock() {
+    $('#lockScreen').classList.remove('open');
+    $('#lockScreen').setAttribute('aria-hidden', 'true');
+  }
+
+  function unlock() {
+    hideLock();
+    document.body.classList.add('unlocked');
+    cloudReady = true;
+    setSyncStatus('正在同步…', 'busy');
+    syncFromCloud(true);
+    startPolling();
+  }
+
+  async function initAccess() {
+    let status;
+    try {
+      status = await apiFetch(API_SESSION, { method: 'GET' });
+    } catch (e) {
+      document.body.classList.add('unlocked');
+      render();
+      setSyncStatus('共享服务不可用，已切换本地模式', 'err');
+      return;
+    }
+    if (status.setupRequired) {
+      showLock('setup');
+      return;
+    }
+    if (accessPassword) {
+      try {
+        await apiFetch(API_SESSION, { method: 'POST', body: JSON.stringify({ password: accessPassword }) });
+        unlock();
+        return;
+      } catch (e) {
+        sessionStorage.removeItem(PW_KEY);
+        accessPassword = '';
+      }
+    }
+    showLock('unlock');
+  }
+
+  async function submitLock() {
+    const password = $('#lockPwd').value;
+    try {
+      await apiFetch(API_SESSION, {
+        method: 'POST',
+        body: JSON.stringify({ password, confirm: $('#lockPwd2').value })
+      });
+      accessPassword = password;
+      sessionStorage.setItem(PW_KEY, password);
+      const wasSetup = lockMode === 'setup';
+      unlock();
+      toast(wasSetup ? '访问密码已设置' : '已解锁');
+    } catch (error) {
+      $('#lockError').textContent = error.message || '操作失败';
+    }
+  }
+
   function handleSyncError(error) {
-    if (error.status === 501 || error.status === 502 || error.status === 404) {
+    if (error.status === 401) {
       cloudReady = false;
       clearInterval(pollTimer);
-      setSyncStatus(error.status === 501 ? '本地模式（未配置共享存储）' : '共享存储不可用，已切换本地模式', 'err');
+      sessionStorage.removeItem(PW_KEY);
+      accessPassword = '';
+      showLock('unlock');
+      return;
+    }
+    if (error.status === 503 || error.status === 502) {
+      cloudReady = false;
+      clearInterval(pollTimer);
+      setSyncStatus('共享存储不可用，已切换本地模式', 'err');
       return;
     }
     setSyncStatus('网络异常，稍后自动重试', 'err');
   }
 
-  async function probeCloud() {
-    try {
-      const data = await apiRequest('GET');
-      cloudReady = true;
-      localSha = data.sha || null;
-      return true;
-    } catch (error) {
-      cloudReady = false;
-      handleSyncError(error);
-      return false;
-    }
+  async function cloudGet() {
+    const data = await apiFetch(API_BOARD + '?board=' + encodeURIComponent(boardId), { method: 'GET' });
+    return { version: data.version || null, todos: data.todos || [] };
+  }
+
+  async function cloudPut(todos, version) {
+    const data = await apiFetch(API_BOARD + '?board=' + encodeURIComponent(boardId), {
+      method: 'PUT',
+      body: JSON.stringify({ todos, version })
+    });
+    return { version: data.version || version };
   }
 
   async function syncFromCloud(initial) {
     if (!cloudReady) return;
     try {
-      const data = await apiRequest('GET');
-      const previousSha = localSha;
-      localSha = data.sha || null;
+      const data = await cloudGet();
+      const previousVersion = localVersion;
+      localVersion = data.version || null;
       if (pendingPush) {
         await pushToCloud(pushGeneration, false);
         return;
@@ -606,9 +704,9 @@
         setSyncStatus('共享看板为空，已清除演示待办', 'ok');
         return;
       }
-      if (data.sha && data.sha !== previousSha) {
+      if (data.version && data.version !== previousVersion) {
         state.todos = remote;
-        localSha = data.sha;
+        localVersion = data.version;
         persist();
         render();
       }
@@ -621,8 +719,8 @@
   async function pushToCloud(generation, retried) {
     if (!cloudReady) return;
     try {
-      const data = await apiRequest('PUT', { board: boardId, todos: state.todos, sha: localSha });
-      localSha = data.sha || localSha;
+      const data = await cloudPut(state.todos, localVersion);
+      localVersion = data.version || localVersion;
       if (generation === pushGeneration) {
         pendingPush = false;
         setSyncStatus('已同步 · ' + state.todos.length + ' 项', 'ok');
@@ -632,13 +730,16 @@
     } catch (error) {
       if (error.status === 409 && !retried) {
         try {
-          const current = await apiRequest('GET');
-          localSha = current.sha || null;
+          const current = await cloudGet();
+          localVersion = current.version || null;
           await pushToCloud(generation, true);
           return;
         } catch (e) {}
       }
-      setSyncStatus('保存失败，将在恢复后重试', 'err');
+      handleSyncError(error);
+      if (error.status !== 401 && error.status !== 503 && error.status !== 502) {
+        setSyncStatus('保存失败，将在恢复后重试', 'err');
+      }
     }
   }
 
@@ -920,7 +1021,7 @@
     e.target.value = next;
     if (next === boardId) return;
     boardId = next;
-    localSha = null;
+    localVersion = null;
     pendingPush = false;
     clearTimeout(pushTimer);
     const url = new URL(location.href);
@@ -929,22 +1030,24 @@
     setSyncStatus('正在切换协作空间…', 'busy');
     await load();
     render();
-    if (await probeCloud()) {
-      await syncFromCloud(true);
-      startPolling();
-    }
+    if (cloudReady) syncFromCloud(true);
   });
 
   $('#copyShareBtn').onclick = async () => {
     const url = new URL(location.href);
     url.searchParams.set('board', boardId);
+    if (accessPassword) url.searchParams.set('key', accessPassword);
     try {
       await navigator.clipboard.writeText(url.toString());
-      toast('协作链接已复制');
+      toast('协作链接已复制（含访问密码，请仅发给可信成员）');
     } catch (e) {
       toast('复制失败，请手动复制地址栏链接');
     }
   };
+
+  $('#lockBtn').onclick = submitLock;
+  $('#lockPwd').addEventListener('keydown', e => { if (e.key === 'Enter') submitLock(); });
+  $('#lockPwd2').addEventListener('keydown', e => { if (e.key === 'Enter') submitLock(); });
 
   /* 头部文案 */
   function paintHeader() {
@@ -968,9 +1071,6 @@
     $('#boardInput').value = boardId;
     await load();
     render();
-    if (await probeCloud()) {
-      await syncFromCloud(true);
-      startPolling();
-    }
+    await initAccess();
   })();
 })();

@@ -1,6 +1,6 @@
 # 待办工作台（daiban）
 
-本地优先、可多人共享的待办清单。前端为纯静态资源，共享数据由 Vercel 无服务器函数写入 GitHub 仓库中的 JSON 文件；无构建步骤，可直接部署到 Vercel。
+带访问密码、可多人共享的待办清单。数据存放在 **Vercel Blob**（Vercel 第一方对象存储），由 Vercel 无服务器函数校验密码后读写。部署时不需要手动填写任何环境变量：创建 Blob Store 并连接到项目后，Vercel 会自动注入连接凭据。
 
 ## 功能
 
@@ -11,85 +11,65 @@
 - 图片灯箱预览与原图保存
 - 完成统计与整体进度环
 - JSON 备份导出与导入（按 `id` 合并，同 `id` 以备份文件为准）
-- **跨浏览器 / 多人共享**：同一「协作空间」内的所有设备看到同一份待办，15 秒轮询 + 页面重新可见时立即同步
-- **离线回退**：网络不可用时继续使用本机数据，恢复后自动重试保存
+- **访问密码**：首次打开设置密码，之后必须输入密码才能查看待办；密码以 scrypt 加盐哈希存在 Blob 中，服务端校验
+- **跨浏览器 / 多人共享**：同一「协作空间」的所有设备看到同一份数据，15 秒轮询 + 页面重新可见时立即同步
+- **离线回退**：网络不可用时继续使用本机缓存，恢复后自动重试保存
 - 快捷键：`⌘/Ctrl + K` 搜索、`⌘/Ctrl + N` 新建、`⌘/Ctrl + Enter` 保存、`Esc` 关闭
 
 ## 目录结构
 
 ```
 daiban/
-├── index.html              # 页面结构
+├── index.html              # 页面结构（含访问密码门禁）
 ├── styles.css              # 全部样式
 ├── app.js                  # 应用逻辑（原生 JavaScript）
-├── api/board.js            # Vercel Serverless Function：共享看板读写
-├── vercel.json             # Vercel 静态站点配置
-├── package.json            # 仅提供本地开发脚本，无运行时依赖
-├── scripts/dev-server.mjs  # 零依赖本地静态服务器（含 /api/board）
+├── api/session.js          # 密码设置 / 校验
+├── api/board.js            # 共享看板读写（需密码）
+├── lib/blob-store.mjs      # Vercel Blob 读写与密码哈希
+├── vercel.json             # Vercel 配置
+├── package.json            # 仅 @vercel/blob 依赖
+├── scripts/dev-server.mjs  # 零依赖本地静态服务器
 └── README.md
 ```
 
-## 共享存储配置（跨浏览器 / 多人协同必需）
+## 部署到 Vercel
 
-共享数据存放于 GitHub 仓库中的 `data/board-<协作空间>.json`。需要三个 Vercel 环境变量：
+1. 打开 [Vercel](https://vercel.com/new)，用 GitHub 账号登录。
+2. 导入仓库 `lwuyuec/daiban`。
+3. Framework Preset：**Other**；Build Command / Output Directory / Install Command 保持默认，Vercel 会自动安装依赖。
+4. 进入项目的 **Storage → Create Storage → Blob**，访问级别选 **Private**，创建后会自动连接到项目。
+   - Vercel 自动注入 `BLOB_STORE_ID` 与 `VERCEL_OIDC_TOKEN`，**无需手动填写环境变量**。
+5. 点击 **Deploy**。首次打开页面时设置访问密码即可。
 
-| 变量名 | 必填 | 说明 |
-|---|---|---|
-| `TODO_GITHUB_TOKEN` | 是 | 具备数据仓库 Contents 读写权限的 Personal Access Token（PAT） |
-| `TODO_DATA_REPO` | 否 | 数据仓库，格式 `owner/repo`；默认 `lwuyuec/daiban` |
-| `TODO_DATA_BRANCH` | 否 | 数据分支，默认 `main` |
+> Vercel Blob 在所有套餐可用。Hobby 套餐有免费额度，适合个人/小团队待办看板。
 
-**强烈建议新建专用私有仓库**（例如 `lwuyuec/daiban-data`）作为 `TODO_DATA_REPO`。原因：
-
-1. 代码仓库通常是公开的，待办内容不应公开可见；
-2. 数据写入代码仓库的 `main` 分支会触发 Vercel 重新部署，使用独立数据仓库可以避免这一问题。
-
-PAT 权限：Fine-grained token 勾选目标仓库的 **Contents: read and write**；Classic token 勾选 `repo`。
-
-### 本地开发
+## 本地运行
 
 ```bash
-TODO_GITHUB_TOKEN=<你的PAT> TODO_DATA_REPO=lwuyuec/daiban-data npm run dev
+npm install
+npm run dev
 # 打开 http://localhost:3000
 ```
 
-未设置 `TODO_GITHUB_TOKEN` 时，页面自动进入「本地模式」，数据仅保存在浏览器，功能与改造前一致。
+本地开发服务器只提供静态文件，不提供 `/api/*`。没有 Vercel 存储连接时，页面会进入本地模式，数据保存在浏览器 IndexedDB；要联调云端同步，请使用 Vercel 部署环境。
 
-## 使用协作空间
+## 协作与分享
 
-- 页面上方「协作空间」输入框决定共享哪一份数据，默认是 `default`。
-- 点击 **复制协作链接** 把当前空间链接发给其他人；对方打开后即可看到同一份待办。
-- 不同空间的数据互不影响，可作为不同项目或不同团队看板。
+- 页面上方「协作空间」决定共享哪一份数据，默认是 `default`。
+- 点击 **复制协作链接** 会带上当前空间与访问密码（URL 参数 `board` 与 `key`），对方打开即可直接进入同一看板。
+- 不同空间的数据互不影响，可作为不同项目或团队看板。
+- **分享链接包含访问密码，请仅发给可信成员。**
 
-## 冲突处理
+## 安全边界
 
-- 写入使用 GitHub 文件 `sha` 做乐观并发控制；遇到并发写入（HTTP 409）时自动获取最新 `sha` 并重试一次。
-- 同步策略为「整份看板最后写入生效」：单人顺序编辑无冲突，两人同时修改不同条目时后提交的版本会覆盖先提交的版本。若需细粒度合并（字段级/操作级），需要改为操作日志或 CRDT 方案。
-- 图片以压缩后的 Data URL 存入 JSON，单文件上限约 10 MB；请勿把看板当图库使用。
-
-## 部署到 Vercel
-
-1. 打开 [Vercel](https://vercel.com/new)，使用 GitHub 账号登录。
-2. 选择 **Add New → Project**，导入 `lwuyuec/daiban`。
-3. 配置保持默认即可：
-   - Framework Preset：**Other**
-   - Root Directory：`./`
-   - Build Command：留空（无需构建）
-   - Output Directory：留空（默认根目录）
-   - Install Command：留空（无依赖）
-4. 在 **Environment Variables** 中添加上表的三个变量。
-5. 点击 **Deploy**。后续推送到 `main` 会自动重新部署。
-
-命令行方式（可选）：
-
-```bash
-npm i -g vercel
-vercel --prod
-```
+- 密码以 scrypt 加盐哈希存储在私有 Blob 中，前端不保存密码明文到 localStorage；仅在当前会话的 sessionStorage 中保留，关闭标签页后需重新输入。
+- 所有数据接口在服务端校验密码，未解锁时无法读取或改写看板。
+- 但静态页面资源本身是公开的；访问密码保护的是数据，不是网页文件。若需要企业级身份体系（账号、找回密码、细粒度权限），应接入真正的认证服务。
+- 写入使用 Blob 的 ETag 条件写入（`ifMatch`）做并发控制；冲突时自动重试一次。策略为「整份看板最后写入生效」，两人同时修改不同条目时后提交者覆盖先提交者。
 
 ## 数据说明
 
-- 浏览器端以 IndexedDB 作为本地缓存（不可用时回退 localStorage），因此断网时仍可查看和编辑。
-- 共享模式下，云端 JSON 是权威数据源；页面加载时以云端数据覆盖本地缓存。
+- 浏览器 IndexedDB 是本地缓存；云端 Blob 是权威数据源，加载时以云端数据覆盖本地缓存。
 - 清除浏览器数据不会丢失云端待办；重新打开协作链接即可恢复。
-- 仍建议定期使用「导出备份 (JSON)」留存快照。
+- 图片以压缩后的 Data URL 存入 JSON，单文件请求体上限约 4.5 MB；请勿把看板当图库使用。
+- 建议定期使用「导出备份 (JSON)」留存快照。

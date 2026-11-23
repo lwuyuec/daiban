@@ -42,6 +42,7 @@ button{font-family:inherit;cursor:pointer}
 input,textarea,select{font-family:inherit;color:inherit}
 ::selection{background:rgba(90,87,214,.18)}
 .app{position:relative;z-index:1;display:flex;min-height:100vh}
+body:not(.unlocked) .app{visibility:hidden}
 
 /* ---------------- Sidebar ---------------- */
 .sidebar{
@@ -159,6 +160,50 @@ main{flex:1;min-width:0;padding:30px 40px 60px;max-width:1180px}
 }
 .sync-copy:hover{border-color:#CFC9F0;color:var(--accent)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+.sync-config{
+  margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;
+  box-shadow:var(--shadow-sm);display:grid;grid-template-columns:1fr 1fr 0.5fr;gap:11px;
+}
+.sync-config[hidden]{display:none}
+.cfg-row{display:flex;flex-direction:column;gap:5px;min-width:0}
+.cfg-row label{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.3px}
+.cfg-row input{
+  height:34px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-size:12px;
+  outline:0;background:#FCFBF9;min-width:0;
+}
+.cfg-row input:focus{border-color:#CFC9F0;background:#fff}
+.cfg-actions{grid-column:1/-1;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.cfg-actions .btn{height:34px;font-size:12px;padding:0 13px}
+.cfg-warn{font-size:11px;color:#B0741D}
+
+/* 访问密码门禁 */
+.lock-screen{
+  position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:rgba(24,22,34,.55);backdrop-filter:blur(14px);
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.lock-screen.open{opacity:1;pointer-events:auto}
+.lock-card{
+  width:min(380px,100%);background:#fff;border-radius:22px;padding:28px;
+  box-shadow:0 40px 90px -32px rgba(20,16,40,.7);display:flex;flex-direction:column;gap:11px;
+}
+.lock-mark{
+  width:44px;height:44px;border-radius:13px;background:var(--accent-soft);color:var(--accent);
+  display:grid;place-items:center;margin-bottom:4px;
+}
+.lock-mark svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lock-card h2{margin:0;font-size:18px;font-weight:650}
+.lock-card p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.6}
+.lock-card input{
+  height:40px;border:1px solid var(--line);border-radius:11px;padding:0 12px;font-size:13px;
+  outline:0;background:#FCFBF9;
+}
+.lock-card input:focus{border-color:#CFC9F0;background:#fff}
+.lock-card .btn{height:40px;justify-content:center;margin-top:3px}
+.lock-card #lockPwd2[hidden]{display:none}
+.lock-error{min-height:16px;font-size:11.5px;color:var(--danger)}
+.lock-foot{font-size:10.5px;color:#B0ADB6;line-height:1.5}
 
 /* stats */
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 1.5fr;gap:12px;margin-top:18px}
@@ -416,6 +461,8 @@ kbd.key{
   .nav{scrollbar-width:none}
   .meta-grid{grid-template-columns:1fr 1fr}
   .field.tags-field{grid-column:span 2}
+  .sync-config{grid-template-columns:1fr}
+  .sync-bar .sync-copy{flex:1}
   .card{padding:13px 12px}
   .c-actions{opacity:1}
   .top-actions{width:100%}

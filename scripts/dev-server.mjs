@@ -1,14 +1,10 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import { extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const port = Number(process.env.PORT || 3000);
-const require = createRequire(import.meta.url);
-const { createBoardHandler } = require('../api/board.js');
-const boardHandler = createBoardHandler(process.env);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -28,12 +24,6 @@ createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     let pathname = decodeURIComponent(url.pathname);
-
-    if (pathname === '/api/board') {
-      await boardHandler(req, res);
-      return;
-    }
-
     if (pathname === '/' || pathname === '') pathname = '/index.html';
 
     const target = resolve(join(root, pathname));

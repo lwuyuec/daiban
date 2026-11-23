@@ -12,6 +12,21 @@
 </head>
 <body>
 
+<div class="lock-screen" id="lockScreen" aria-hidden="true">
+  <div class="lock-card" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
+    <div class="lock-mark">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="10.5" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+    </div>
+    <h2 id="lockTitle">设置访问密码</h2>
+    <p id="lockDesc">首次使用请设置密码，之后打开此页面需要输入。</p>
+    <input type="password" id="lockPwd" maxlength="64" placeholder="访问密码" aria-label="访问密码" autocomplete="current-password">
+    <input type="password" id="lockPwd2" maxlength="64" placeholder="再次输入密码" aria-label="确认访问密码" autocomplete="new-password">
+    <button class="btn primary" id="lockBtn" type="button">设置并进入</button>
+    <div class="lock-error" id="lockError" role="alert"></div>
+    <div class="lock-foot">密码以加盐哈希保存在本浏览器，不会上传。</div>
+  </div>
+</div>
+
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
